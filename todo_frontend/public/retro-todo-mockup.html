@@ -1,0 +1,715 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1"
+    />
+    <meta name="color-scheme" content="dark" />
+    <title>Retro Todo Mockup</title>
+
+    <!--
+      Standalone static mockup file.
+      No app wiring, no build integration required.
+      Open directly in the browser:
+      todo_frontend/public/retro-todo-mockup.html
+    -->
+
+    <!-- Retro-ish fonts (safe fallbacks included) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap"
+      rel="stylesheet"
+    />
+
+    <style>
+      :root {
+        --bg0: #070611;
+        --bg1: #0b0a1a;
+        --panel: rgba(17, 16, 35, 0.72);
+        --panel-2: rgba(17, 16, 35, 0.86);
+
+        --grid: rgba(125, 211, 252, 0.09);
+        --border: rgba(125, 211, 252, 0.28);
+
+        --neon-cyan: #7dd3fc;
+        --neon-pink: #f472b6;
+        --neon-lime: #a3e635;
+        --neon-amber: #fbbf24;
+        --neon-red: #fb7185;
+
+        --text: rgba(255, 255, 255, 0.92);
+        --muted: rgba(255, 255, 255, 0.72);
+
+        --shadow: 0 22px 80px rgba(0, 0, 0, 0.55);
+        --glow-cyan: 0 0 14px rgba(125, 211, 252, 0.55);
+        --glow-pink: 0 0 14px rgba(244, 114, 182, 0.55);
+
+        --radius: 18px;
+        --radius-sm: 12px;
+      }
+
+      * { box-sizing: border-box; }
+      html, body { height: 100%; }
+      body {
+        margin: 0;
+        color: var(--text);
+        background:
+          radial-gradient(1200px 700px at 15% 10%, rgba(244, 114, 182, 0.18), transparent 55%),
+          radial-gradient(900px 600px at 82% 12%, rgba(125, 211, 252, 0.16), transparent 50%),
+          radial-gradient(700px 450px at 60% 84%, rgba(163, 230, 53, 0.10), transparent 55%),
+          linear-gradient(180deg, var(--bg0), var(--bg1));
+        font-family: "VT323", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
+          "Courier New", monospace;
+        letter-spacing: 0.2px;
+        overflow-x: hidden;
+      }
+
+      /* Scanline + grid overlay */
+      .fx {
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        z-index: 0;
+      }
+      .fx::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background:
+          repeating-linear-gradient(
+            to bottom,
+            rgba(255,255,255,0.035),
+            rgba(255,255,255,0.035) 1px,
+            transparent 1px,
+            transparent 4px
+          );
+        mix-blend-mode: overlay;
+        opacity: 0.45;
+      }
+      .fx::after {
+        content: "";
+        position: absolute;
+        inset: -2px;
+        background:
+          linear-gradient(var(--grid) 1px, transparent 1px),
+          linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+        background-size: 48px 48px;
+        transform: perspective(900px) rotateX(9deg) translateY(20px);
+        transform-origin: top center;
+        opacity: 0.65;
+        filter: blur(0.1px);
+      }
+
+      /* Subtle CRT vignette */
+      .vignette {
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        z-index: 1;
+        background: radial-gradient(circle at center, transparent 55%, rgba(0, 0, 0, 0.55) 100%);
+      }
+
+      .wrap {
+        position: relative;
+        z-index: 2;
+        min-height: 100%;
+        padding: 28px 18px 42px;
+        display: grid;
+        place-items: center;
+      }
+
+      .shell {
+        width: min(980px, 100%);
+        display: grid;
+        gap: 16px;
+      }
+
+      header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 14px;
+        padding: 18px 18px 14px;
+        border-radius: var(--radius);
+        background: linear-gradient(180deg, rgba(17, 16, 35, 0.76), rgba(17, 16, 35, 0.58));
+        border: 1px solid var(--border);
+        box-shadow: var(--shadow), var(--glow-cyan);
+        position: relative;
+        overflow: hidden;
+      }
+
+      header::before {
+        content: "";
+        position: absolute;
+        inset: -1px;
+        background:
+          radial-gradient(650px 220px at 25% 0%, rgba(125, 211, 252, 0.18), transparent 60%),
+          radial-gradient(600px 240px at 95% 15%, rgba(244, 114, 182, 0.16), transparent 64%);
+        opacity: 0.9;
+      }
+
+      .brand {
+        position: relative;
+        display: grid;
+        gap: 10px;
+      }
+
+      .title {
+        font-family: "Press Start 2P", system-ui, sans-serif;
+        font-size: 16px;
+        line-height: 1.35;
+        margin: 0;
+        text-shadow: 0 0 0 rgba(0,0,0,0), 0 0 10px rgba(125, 211, 252, 0.35);
+      }
+
+      .subtitle {
+        margin: 0;
+        color: var(--muted);
+        font-size: 22px;
+        line-height: 1.2;
+      }
+
+      .status {
+        position: relative;
+        display: grid;
+        gap: 10px;
+        justify-items: end;
+        min-width: 220px;
+      }
+
+      .pillrow {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        gap: 8px;
+      }
+
+      .pill {
+        border: 1px solid rgba(255,255,255,0.14);
+        background: rgba(255, 255, 255, 0.06);
+        border-radius: 999px;
+        padding: 7px 10px;
+        font-size: 18px;
+        color: rgba(255,255,255,0.88);
+        box-shadow: 0 0 0 rgba(0,0,0,0);
+        white-space: nowrap;
+      }
+      .pill strong { font-weight: 700; color: #fff; }
+      .pill--cyan { border-color: rgba(125, 211, 252, 0.30); box-shadow: var(--glow-cyan); }
+      .pill--pink { border-color: rgba(244, 114, 182, 0.30); box-shadow: var(--glow-pink); }
+
+      .hint {
+        margin: 0;
+        font-size: 18px;
+        color: rgba(255,255,255,0.70);
+        text-align: right;
+      }
+      kbd {
+        font-family: inherit;
+        font-size: 18px;
+        padding: 2px 6px;
+        border-radius: 6px;
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        background: rgba(0,0,0,0.25);
+      }
+
+      main {
+        display: grid;
+        grid-template-columns: 1.2fr 0.8fr;
+        gap: 16px;
+      }
+
+      @media (max-width: 920px) {
+        main { grid-template-columns: 1fr; }
+        .status { justify-items: start; min-width: unset; }
+        .hint { text-align: left; }
+        .pillrow { justify-content: flex-start; }
+      }
+
+      .card {
+        border-radius: var(--radius);
+        border: 1px solid var(--border);
+        background: linear-gradient(180deg, var(--panel), var(--panel-2));
+        box-shadow: var(--shadow);
+        overflow: hidden;
+      }
+
+      .card__head {
+        padding: 14px 16px 12px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        border-bottom: 1px solid rgba(125, 211, 252, 0.18);
+        background: rgba(0, 0, 0, 0.16);
+      }
+
+      .card__title {
+        margin: 0;
+        font-family: "Press Start 2P", system-ui, sans-serif;
+        font-size: 12px;
+        letter-spacing: 0.6px;
+        color: rgba(255,255,255,0.9);
+      }
+
+      .card__body {
+        padding: 16px;
+      }
+
+      .compose {
+        display: grid;
+        gap: 10px;
+      }
+
+      .fieldrow {
+        display: grid;
+        grid-template-columns: 1fr auto auto;
+        gap: 10px;
+        align-items: center;
+      }
+
+      @media (max-width: 560px) {
+        .fieldrow {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      label {
+        display: block;
+        font-size: 18px;
+        color: rgba(255,255,255,0.85);
+        margin-bottom: 6px;
+      }
+
+      .input {
+        width: 100%;
+        border-radius: 14px;
+        border: 1px solid rgba(125, 211, 252, 0.28);
+        background: rgba(0,0,0,0.35);
+        color: rgba(255,255,255,0.92);
+        padding: 12px 14px;
+        font-size: 20px;
+        outline: none;
+        box-shadow: inset 0 0 0 1px rgba(0,0,0,0.25);
+      }
+      .input::placeholder { color: rgba(255,255,255,0.45); }
+      .input:focus {
+        border-color: rgba(125, 211, 252, 0.6);
+        box-shadow: 0 0 0 3px rgba(125, 211, 252, 0.18), inset 0 0 0 1px rgba(0,0,0,0.25);
+      }
+
+      .btn {
+        border: 1px solid rgba(255,255,255,0.16);
+        background: rgba(255,255,255,0.06);
+        color: rgba(255,255,255,0.92);
+        border-radius: 14px;
+        padding: 11px 12px;
+        font-size: 20px;
+        cursor: default; /* mockup */
+        user-select: none;
+        text-align: center;
+        min-width: 120px;
+        box-shadow: 0 10px 28px rgba(0,0,0,0.28);
+      }
+
+      .btn--primary {
+        border-color: rgba(163, 230, 53, 0.38);
+        background:
+          linear-gradient(180deg, rgba(163, 230, 53, 0.20), rgba(163, 230, 53, 0.08));
+        box-shadow: 0 0 14px rgba(163, 230, 53, 0.20), 0 10px 28px rgba(0,0,0,0.28);
+      }
+
+      .btn--ghost {
+        border-color: rgba(244, 114, 182, 0.30);
+        background: rgba(244, 114, 182, 0.10);
+        box-shadow: 0 0 14px rgba(244, 114, 182, 0.18), 0 10px 28px rgba(0,0,0,0.28);
+      }
+
+      .micro {
+        font-size: 18px;
+        color: rgba(255,255,255,0.72);
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+
+      .micro span {
+        display: inline-flex;
+        gap: 8px;
+        align-items: center;
+      }
+
+      .dot {
+        width: 9px; height: 9px;
+        border-radius: 50%;
+        display: inline-block;
+        background: rgba(255,255,255,0.4);
+        box-shadow: 0 0 0 rgba(0,0,0,0);
+      }
+      .dot--cyan { background: var(--neon-cyan); box-shadow: 0 0 12px rgba(125, 211, 252, 0.55); }
+      .dot--lime { background: var(--neon-lime); box-shadow: 0 0 12px rgba(163, 230, 53, 0.45); }
+      .dot--pink { background: var(--neon-pink); box-shadow: 0 0 12px rgba(244, 114, 182, 0.45); }
+
+      .list {
+        display: grid;
+        gap: 10px;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+      }
+
+      .todo {
+        display: grid;
+        grid-template-columns: auto 1fr auto;
+        gap: 12px;
+        align-items: center;
+        border-radius: 14px;
+        border: 1px solid rgba(255,255,255,0.12);
+        background: rgba(0,0,0,0.22);
+        padding: 12px 12px;
+      }
+
+      .todo--done {
+        opacity: 0.8;
+        border-color: rgba(163, 230, 53, 0.24);
+        background: rgba(163, 230, 53, 0.07);
+      }
+
+      .check {
+        width: 22px; height: 22px;
+        border-radius: 6px;
+        border: 1px solid rgba(125, 211, 252, 0.35);
+        background: rgba(0,0,0,0.25);
+        box-shadow: inset 0 0 0 2px rgba(0,0,0,0.22);
+        position: relative;
+      }
+
+      .todo--done .check {
+        border-color: rgba(163, 230, 53, 0.45);
+        background: rgba(163, 230, 53, 0.16);
+      }
+      .todo--done .check::after {
+        content: "✓";
+        position: absolute;
+        inset: 0;
+        display: grid;
+        place-items: center;
+        font-size: 18px;
+        color: rgba(255,255,255,0.92);
+        text-shadow: 0 0 12px rgba(163, 230, 53, 0.45);
+      }
+
+      .todo__text {
+        display: grid;
+        gap: 4px;
+        min-width: 0;
+      }
+
+      .todo__label {
+        font-size: 24px;
+        line-height: 1.05;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .todo--done .todo__label {
+        text-decoration: line-through;
+        color: rgba(255,255,255,0.72);
+      }
+
+      .todo__meta {
+        font-size: 18px;
+        color: rgba(255,255,255,0.65);
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+
+      .tag {
+        padding: 3px 9px;
+        border-radius: 999px;
+        border: 1px solid rgba(255,255,255,0.14);
+        background: rgba(255,255,255,0.06);
+      }
+      .tag--amber { border-color: rgba(251, 191, 36, 0.35); background: rgba(251, 191, 36, 0.10); }
+      .tag--cyan { border-color: rgba(125, 211, 252, 0.33); background: rgba(125, 211, 252, 0.08); }
+      .tag--pink { border-color: rgba(244, 114, 182, 0.32); background: rgba(244, 114, 182, 0.08); }
+      .tag--lime { border-color: rgba(163, 230, 53, 0.30); background: rgba(163, 230, 53, 0.08); }
+
+      .todo__actions {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+      }
+
+      .iconbtn {
+        width: 42px;
+        height: 42px;
+        border-radius: 12px;
+        border: 1px solid rgba(255,255,255,0.14);
+        background: rgba(255,255,255,0.05);
+        display: grid;
+        place-items: center;
+        font-size: 20px;
+        color: rgba(255,255,255,0.92);
+      }
+      .iconbtn--edit { border-color: rgba(125, 211, 252, 0.32); box-shadow: 0 0 10px rgba(125, 211, 252, 0.18); }
+      .iconbtn--del { border-color: rgba(251, 113, 133, 0.30); box-shadow: 0 0 10px rgba(251, 113, 133, 0.16); }
+
+      .sidegrid {
+        display: grid;
+        gap: 16px;
+      }
+
+      .statbox {
+        display: grid;
+        gap: 10px;
+      }
+
+      .bigstat {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 12px 12px;
+        border-radius: 14px;
+        border: 1px solid rgba(255,255,255,0.12);
+        background: rgba(0,0,0,0.22);
+      }
+      .bigstat__label {
+        color: rgba(255,255,255,0.75);
+        font-size: 18px;
+      }
+      .bigstat__value {
+        font-family: "Press Start 2P", system-ui, sans-serif;
+        font-size: 14px;
+        color: rgba(255,255,255,0.92);
+      }
+
+      .divider {
+        height: 1px;
+        background: rgba(125, 211, 252, 0.16);
+        margin: 12px 0;
+      }
+
+      .note {
+        font-size: 18px;
+        color: rgba(255,255,255,0.72);
+        line-height: 1.35;
+        margin: 0;
+      }
+
+      .footer {
+        text-align: center;
+        color: rgba(255,255,255,0.55);
+        font-size: 18px;
+        padding: 8px 0 0;
+      }
+
+      a { color: var(--neon-cyan); text-decoration: none; }
+      a:hover { text-decoration: underline; }
+    </style>
+  </head>
+
+  <body>
+    <div class="fx" aria-hidden="true"></div>
+    <div class="vignette" aria-hidden="true"></div>
+
+    <div class="wrap">
+      <div class="shell" role="application" aria-label="Retro todo mockup">
+        <header>
+          <div class="brand">
+            <h1 class="title">RETRO TODO // MOCKUP</h1>
+            <p class="subtitle">A neon, CRT-style todo list (static UI)</p>
+          </div>
+
+          <div class="status" aria-label="Mock status">
+            <div class="pillrow">
+              <div class="pill pill--cyan" title="Mock mode">
+                MODE: <strong>OFFLINE</strong>
+              </div>
+              <div class="pill pill--pink" title="Theme">
+                THEME: <strong>CRT</strong>
+              </div>
+            </div>
+            <p class="hint">
+              Tip: press <kbd>Enter</kbd> to “add” (visual only)
+            </p>
+          </div>
+        </header>
+
+        <main>
+          <section class="card" aria-label="Todos">
+            <div class="card__head">
+              <h2 class="card__title">ADD NEW MISSION</h2>
+              <div class="pill" aria-hidden="true">v0.0 static</div>
+            </div>
+
+            <div class="card__body">
+              <div class="compose">
+                <div>
+                  <label for="todoInput">Todo text</label>
+                  <div class="fieldrow">
+                    <input
+                      id="todoInput"
+                      class="input"
+                      type="text"
+                      placeholder="e.g., Defeat the bug boss in level 3..."
+                      value=""
+                      aria-describedby="composeHelp"
+                    />
+                    <div class="btn btn--primary" role="button" aria-label="Add todo (mock)">
+                      + Add
+                    </div>
+                    <div class="btn btn--ghost" role="button" aria-label="Clear input (mock)">
+                      Clear
+                    </div>
+                  </div>
+                </div>
+
+                <div class="micro" id="composeHelp">
+                  <span><i class="dot dot--cyan" aria-hidden="true"></i>Clickable controls are mock only</span>
+                  <span><i class="dot dot--pink" aria-hidden="true"></i>Edit/Delete shown as icon buttons</span>
+                  <span><i class="dot dot--lime" aria-hidden="true"></i>Completed items glow green</span>
+                </div>
+
+                <div class="divider" role="separator" aria-hidden="true"></div>
+
+                <h2 class="card__title" style="margin: 0 0 10px;">CURRENT QUEUE</h2>
+
+                <ul class="list" aria-label="Todo list (static)">
+                  <li class="todo">
+                    <div class="check" aria-hidden="true"></div>
+                    <div class="todo__text">
+                      <div class="todo__label">Buy milk (and snacks for the LAN party)</div>
+                      <div class="todo__meta">
+                        <span class="tag tag--amber">Priority: High</span>
+                        <span class="tag tag--cyan">Category: Errands</span>
+                        <span class="tag">Created: Today</span>
+                      </div>
+                    </div>
+                    <div class="todo__actions" aria-label="Actions (mock)">
+                      <div class="iconbtn iconbtn--edit" role="button" aria-label="Edit todo (mock)" title="Edit (mock)">✎</div>
+                      <div class="iconbtn iconbtn--del" role="button" aria-label="Delete todo (mock)" title="Delete (mock)">🗑</div>
+                    </div>
+                  </li>
+
+                  <li class="todo todo--done">
+                    <div class="check" aria-hidden="true"></div>
+                    <div class="todo__text">
+                      <div class="todo__label">Ship v1 mockup to the team</div>
+                      <div class="todo__meta">
+                        <span class="tag tag--lime">Status: Complete</span>
+                        <span class="tag tag--pink">Streak: +1</span>
+                        <span class="tag">Done: 5 min ago</span>
+                      </div>
+                    </div>
+                    <div class="todo__actions" aria-label="Actions (mock)">
+                      <div class="iconbtn iconbtn--edit" role="button" aria-label="Edit todo (mock)" title="Edit (mock)">✎</div>
+                      <div class="iconbtn iconbtn--del" role="button" aria-label="Delete todo (mock)" title="Delete (mock)">🗑</div>
+                    </div>
+                  </li>
+
+                  <li class="todo">
+                    <div class="check" aria-hidden="true"></div>
+                    <div class="todo__text">
+                      <div class="todo__label">Refactor “laser” CSS into reusable tokens</div>
+                      <div class="todo__meta">
+                        <span class="tag tag--cyan">Category: Dev</span>
+                        <span class="tag tag--amber">ETA: Tonight</span>
+                        <span class="tag">Notes: keep it readable</span>
+                      </div>
+                    </div>
+                    <div class="todo__actions" aria-label="Actions (mock)">
+                      <div class="iconbtn iconbtn--edit" role="button" aria-label="Edit todo (mock)" title="Edit (mock)">✎</div>
+                      <div class="iconbtn iconbtn--del" role="button" aria-label="Delete todo (mock)" title="Delete (mock)">🗑</div>
+                    </div>
+                  </li>
+
+                  <li class="todo">
+                    <div class="check" aria-hidden="true"></div>
+                    <div class="todo__text">
+                      <div class="todo__label">Call mom</div>
+                      <div class="todo__meta">
+                        <span class="tag tag--pink">Category: Life</span>
+                        <span class="tag">Reminder: 7pm</span>
+                      </div>
+                    </div>
+                    <div class="todo__actions" aria-label="Actions (mock)">
+                      <div class="iconbtn iconbtn--edit" role="button" aria-label="Edit todo (mock)" title="Edit (mock)">✎</div>
+                      <div class="iconbtn iconbtn--del" role="button" aria-label="Delete todo (mock)" title="Delete (mock)">🗑</div>
+                    </div>
+                  </li>
+                </ul>
+
+                <p class="footer">
+                  Static mockup file (no JS). For the real app, these controls would be wired to add/edit/delete.
+                </p>
+              </div>
+            </div>
+          </section>
+
+          <aside class="sidegrid" aria-label="Sidebar (static)">
+            <section class="card">
+              <div class="card__head">
+                <h2 class="card__title">DASHBOARD</h2>
+                <div class="pill" aria-hidden="true">stats</div>
+              </div>
+              <div class="card__body">
+                <div class="statbox" role="group" aria-label="Todo stats">
+                  <div class="bigstat">
+                    <div class="bigstat__label">Total</div>
+                    <div class="bigstat__value">4</div>
+                  </div>
+                  <div class="bigstat">
+                    <div class="bigstat__label">Completed</div>
+                    <div class="bigstat__value">1</div>
+                  </div>
+                  <div class="bigstat">
+                    <div class="bigstat__label">Pending</div>
+                    <div class="bigstat__value">3</div>
+                  </div>
+                </div>
+
+                <div class="divider" role="separator" aria-hidden="true"></div>
+
+                <p class="note">
+                  Filters (mock):
+                  <span class="tag tag--cyan">All</span>
+                  <span class="tag tag--lime">Done</span>
+                  <span class="tag tag--amber">High</span>
+                </p>
+              </div>
+            </section>
+
+            <section class="card">
+              <div class="card__head">
+                <h2 class="card__title">HOTKEYS</h2>
+                <div class="pill" aria-hidden="true">ui</div>
+              </div>
+              <div class="card__body">
+                <p class="note">
+                  <strong style="color: rgba(255,255,255,0.92);">Enter</strong> — add todo<br />
+                  <strong style="color: rgba(255,255,255,0.92);">E</strong> — edit selected<br />
+                  <strong style="color: rgba(255,255,255,0.92);">Del</strong> — delete selected<br />
+                  <span style="color: rgba(255,255,255,0.62);">(All mock for layout)</span>
+                </p>
+
+                <div class="divider" role="separator" aria-hidden="true"></div>
+
+                <p class="note">
+                  Visual style: neon gradients, scanlines, grid floor, and pixel header font.
+                </p>
+              </div>
+            </section>
+          </aside>
+        </main>
+      </div>
+    </div>
+  </body>
+</html>

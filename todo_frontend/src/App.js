@@ -65,14 +65,17 @@ function loadState() {
 
 /**
  * @param {{todos: Todo[]}} state
+ * @returns {{ok: true} | {ok: false, error: unknown}}
  */
 function persistState(state) {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    return { ok: true };
   } catch (e) {
     // eslint-disable-next-line no-console
     console.warn("Failed to persist state:", e);
     // Keep app functional in-memory.
+    return { ok: false, error: e };
   }
 }
 
@@ -136,17 +139,37 @@ function useToast() {
   return { toast, show };
 }
 
+function getFocusableElements(container) {
+  const selectors = [
+    'a[href]',
+    'button:not([disabled])',
+    'input:not([disabled])',
+    'select:not([disabled])',
+    'textarea:not([disabled])',
+    '[tabindex]:not([tabindex="-1"])',
+  ].join(",");
+
+  return Array.from(container.querySelectorAll(selectors)).filter(
+    (el) => el instanceof HTMLElement && !el.hasAttribute("disabled")
+  );
+}
+
 function Modal({ open, title, titleId, descriptionId, onClose, children, initialFocusRef }) {
+  const panelRef = useRef(null);
+
   useEffect(() => {
     if (!open) return;
 
     const prevOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
 
-    // Focus management (simple, but effective for this small app)
+    // Focus management: move focus into modal when it opens.
     const t = window.setTimeout(() => {
       if (initialFocusRef?.current && typeof initialFocusRef.current.focus === "function") {
         initialFocusRef.current.focus();
+      } else if (panelRef.current) {
+        const focusables = getFocusableElements(panelRef.current);
+        if (focusables[0]) focusables[0].focus();
       }
     }, 0);
 
@@ -160,9 +183,31 @@ function Modal({ open, title, titleId, descriptionId, onClose, children, initial
     if (!open) return;
 
     const handler = (e) => {
-      if (e.key !== "Escape") return;
-      e.preventDefault();
-      onClose();
+      if (e.key === "Escape") {
+        e.preventDefault();
+        onClose();
+        return;
+      }
+
+      // Minimal focus trap: keep tab inside modal panel.
+      if (e.key === "Tab" && panelRef.current) {
+        const focusables = getFocusableElements(panelRef.current);
+        if (focusables.length === 0) return;
+
+        const first = focusables[0];
+        const last = focusables[focusables.length - 1];
+        const active = document.activeElement;
+
+        if (e.shiftKey && active === first) {
+          e.preventDefault();
+          last.focus();
+          return;
+        }
+        if (!e.shiftKey && active === last) {
+          e.preventDefault();
+          first.focus();
+        }
+      }
     };
 
     window.addEventListener("keydown", handler);
@@ -172,15 +217,10 @@ function Modal({ open, title, titleId, descriptionId, onClose, children, initial
   if (!open) return null;
 
   return (
-    <div className="modal" aria-hidden="false">
-      <button
-        type="button"
-        className="modal__backdrop"
-        data-close="true"
-        aria-label="Close modal"
-        onClick={onClose}
-      />
+    <div className="modal" role="presentation" aria-hidden="false">
+      <button type="button" className="modal__backdrop" aria-label="Close modal" onClick={onClose} />
       <div
+        ref={panelRef}
         className="modal__panel"
         role="dialog"
         aria-modal="true"
@@ -222,17 +262,21 @@ function App() {
 
   const lastFocusRef = useRef(null);
 
+  const todos = state.todos;
+
   // Persist on every state change.
   useEffect(() => {
-    persistState(state);
+    const result = persistState(state);
+    if (!result.ok) {
+      showToast("Warning: could not save to localStorage.", { kind: "warn" });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state]);
 
   // Initial focus for fast use.
   useEffect(() => {
     if (inputRef.current) inputRef.current.focus();
   }, []);
-
-  const todos = state.todos;
 
   const stats = useMemo(() => {
     const total = todos.length;
@@ -277,16 +321,12 @@ function App() {
   }
 
   function toggleTodo(id) {
-    setTodos((prev) =>
-      prev.map((t) => {
-        if (t.id !== id) return t;
-        const nextDone = !t.done;
-        return { ...t, done: nextDone, updatedAt: Date.now() };
-      })
-    );
+    const current = todos.find((x) => x.id === id);
+    if (!current) return;
 
-    const t = todos.find((x) => x.id === id);
-    showToast(t && !t.done ? "Mission complete." : "Mission restored.");
+    const nextDone = !current.done;
+    setTodos((prev) => prev.map((t) => (t.id === id ? { ...t, done: nextDone, updatedAt: Date.now() } : t)));
+    showToast(nextDone ? "Mission complete." : "Mission restored.");
   }
 
   function openEdit(id, focusEl) {
@@ -322,10 +362,7 @@ function App() {
       return;
     }
 
-    setTodos((prev) =>
-      prev.map((t) => (t.id === editTodoId ? { ...t, text: next, updatedAt: Date.now() } : t))
-    );
-
+    setTodos((prev) => prev.map((t) => (t.id === editTodoId ? { ...t, text: next, updatedAt: Date.now() } : t)));
     showToast("Saved changes.", { strong: next });
     closeEdit();
   }
@@ -437,13 +474,14 @@ function App() {
                         autoComplete="off"
                       />
 
-                      <button className="btn btn--primary" type="button" onClick={addFromCompose}>
+                      <button className="btn btn--primary" type="button" onClick={addFromCompose} aria-label="Add todo">
                         + Add
                       </button>
 
                       <button
                         className="btn btn--ghost"
                         type="button"
+                        aria-label="Clear input"
                         onClick={() => {
                           setComposeText("");
                           if (inputRef.current) inputRef.current.focus();
@@ -478,6 +516,7 @@ function App() {
                         className="btn btn--warn btn--tiny"
                         type="button"
                         title="Clears ALL todos"
+                        aria-label="Reset all todos"
                         onClick={resetAll}
                         disabled={stats.total === 0}
                       >
@@ -496,7 +535,7 @@ function App() {
                             <button
                               className="checkbtn"
                               type="button"
-                              aria-label="Toggle complete"
+                              aria-label={t.done ? "Mark as not completed" : "Mark as completed"}
                               onClick={() => toggleTodo(t.id)}
                             />
 
@@ -517,7 +556,7 @@ function App() {
                               <button
                                 className="iconbtn iconbtn--edit"
                                 type="button"
-                                aria-label="Edit todo"
+                                aria-label={`Edit todo: ${t.text}`}
                                 title="Edit"
                                 onClick={(e) => openEdit(t.id, e.currentTarget)}
                               >
@@ -526,7 +565,7 @@ function App() {
                               <button
                                 className="iconbtn iconbtn--del"
                                 type="button"
-                                aria-label="Delete todo"
+                                aria-label={`Delete todo: ${t.text}`}
                                 title="Delete"
                                 onClick={(e) => openConfirm(t.id, e.currentTarget)}
                               >
@@ -682,7 +721,15 @@ function App() {
           <button className="btn btn--ghost" type="button" onClick={closeConfirm}>
             Cancel
           </button>
-          <button ref={confirmDeleteRef} className="btn btn--warn" type="button" onClick={confirmDelete}>
+          <button
+            ref={confirmDeleteRef}
+            className="btn btn--warn"
+            type="button"
+            onClick={confirmDelete}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") confirmDelete();
+            }}
+          >
             Delete
           </button>
         </div>
@@ -693,8 +740,7 @@ function App() {
         role="status"
         aria-live="polite"
         style={{
-          borderColor:
-            toast.kind === "warn" ? "rgba(251, 113, 133, 0.30)" : "rgba(125, 211, 252, 0.28)",
+          borderColor: toast.kind === "warn" ? "rgba(251, 113, 133, 0.30)" : "rgba(125, 211, 252, 0.28)",
         }}
       >
         {toast.strong ? (

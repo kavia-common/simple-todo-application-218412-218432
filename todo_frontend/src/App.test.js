@@ -7,6 +7,14 @@ function typeAndAdd(text) {
   fireEvent.click(screen.getByRole("button", { name: /add todo/i }));
 }
 
+/**
+ * Toasts can include the todo text (strong text), which makes global `getByText`
+ * ambiguous. Scope todo-text assertions to the actual list region.
+ */
+function getTodoList() {
+  return screen.getByRole("list", { name: /todo list/i });
+}
+
 beforeEach(() => {
   window.localStorage.clear();
 });
@@ -25,8 +33,9 @@ test("adds a todo, clears input, and shows it in the list", () => {
   // input cleared after add
   expect(input).toHaveValue("");
 
-  // todo appears
-  expect(screen.getByText("Learn React testing")).toBeInTheDocument();
+  // todo appears in list (not toast)
+  const list = getTodoList();
+  expect(within(list).getByText("Learn React testing")).toBeInTheDocument();
 });
 
 test("rejects empty todo on add", () => {
@@ -67,8 +76,9 @@ test("edits a todo and can cancel", () => {
   fireEvent.change(modalInput, { target: { value: "Changed" } });
   fireEvent.click(within(dialog).getByRole("button", { name: /cancel/i }));
 
-  // unchanged
-  expect(screen.getByText("Original")).toBeInTheDocument();
+  // unchanged in list (not toast)
+  const list = getTodoList();
+  expect(within(list).getByText("Original")).toBeInTheDocument();
 
   // edit and save
   fireEvent.click(screen.getByRole("button", { name: /edit todo: original/i }));
@@ -78,8 +88,9 @@ test("edits a todo and can cancel", () => {
   fireEvent.change(modalInput2, { target: { value: "Changed" } });
   fireEvent.click(within(dialog2).getByRole("button", { name: /save/i }));
 
-  expect(screen.getByText("Changed")).toBeInTheDocument();
-  expect(screen.queryByText("Original")).not.toBeInTheDocument();
+  const list2 = getTodoList();
+  expect(within(list2).getByText("Changed")).toBeInTheDocument();
+  expect(within(list2).queryByText("Original")).not.toBeInTheDocument();
 });
 
 test("rejects empty todo on edit", () => {
@@ -106,7 +117,8 @@ test("deletes a todo via confirmation dialog", () => {
   const dialog = screen.getByRole("dialog", { name: /confirm delete/i });
   fireEvent.click(within(dialog).getByRole("button", { name: /^delete$/i }));
 
-  expect(screen.queryByText("Delete me")).not.toBeInTheDocument();
+  const list = getTodoList();
+  expect(within(list).queryByText("Delete me")).not.toBeInTheDocument();
   expect(screen.getByText(/deleted mission/i)).toBeInTheDocument();
 });
 
@@ -114,10 +126,12 @@ test("persists todos to localStorage and restores on re-mount", () => {
   const { unmount } = render(<App />);
 
   typeAndAdd("Persisted");
-  expect(screen.getByText("Persisted")).toBeInTheDocument();
+  const list = getTodoList();
+  expect(within(list).getByText("Persisted")).toBeInTheDocument();
 
   unmount();
 
   render(<App />);
-  expect(screen.getByText("Persisted")).toBeInTheDocument();
+  const list2 = getTodoList();
+  expect(within(list2).getByText("Persisted")).toBeInTheDocument();
 });

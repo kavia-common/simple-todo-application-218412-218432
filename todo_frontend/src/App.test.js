@@ -117,8 +117,13 @@ test("deletes a todo via confirmation dialog", () => {
   const dialog = screen.getByRole("dialog", { name: /confirm delete/i });
   fireEvent.click(within(dialog).getByRole("button", { name: /^delete$/i }));
 
-  const list = getTodoList();
-  expect(within(list).queryByText("Delete me")).not.toBeInTheDocument();
+  // After deleting the last todo, the app renders an empty-state and does not render the list.
+  expect(screen.queryByRole("list", { name: /todo list/i })).not.toBeInTheDocument();
+  expect(screen.getByText(/no missions yet/i)).toBeInTheDocument();
+
+  // Confirm the deleted item is gone from the UI.
+  expect(screen.queryByText("Delete me")).not.toBeInTheDocument();
+
   expect(screen.getByText(/deleted mission/i)).toBeInTheDocument();
 });
 

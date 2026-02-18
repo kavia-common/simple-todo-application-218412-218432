@@ -121,8 +121,9 @@ test("deletes a todo via confirmation dialog", () => {
   expect(screen.queryByRole("list", { name: /todo list/i })).not.toBeInTheDocument();
   expect(screen.getByText(/no missions yet/i)).toBeInTheDocument();
 
-  // Confirm the deleted item is gone from the UI.
-  expect(screen.queryByText("Delete me")).not.toBeInTheDocument();
+  // The toast can include the todo text, so avoid any global "Delete me" assertions here.
+  // Instead, assert it is not present as a list item anymore.
+  expect(screen.queryByRole("listitem")).not.toBeInTheDocument();
 
   expect(screen.getByText(/deleted mission/i)).toBeInTheDocument();
 });

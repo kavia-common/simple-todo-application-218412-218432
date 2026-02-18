@@ -1,0 +1,1377 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1"
+    />
+    <meta name="color-scheme" content="dark" />
+    <title>Retro Todo Interactive</title>
+
+    <!--
+      Standalone interactive file.
+      No React wiring, no build integration required.
+      Open directly in the browser:
+      todo_frontend/public/retro-todo-interactive.html
+    -->
+
+    <!-- Retro-ish fonts (safe fallbacks included) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap"
+      rel="stylesheet"
+    />
+
+    <style>
+      :root {
+        --bg0: #070611;
+        --bg1: #0b0a1a;
+        --panel: rgba(17, 16, 35, 0.72);
+        --panel-2: rgba(17, 16, 35, 0.86);
+
+        --grid: rgba(125, 211, 252, 0.09);
+        --border: rgba(125, 211, 252, 0.28);
+
+        --neon-cyan: #7dd3fc;
+        --neon-pink: #f472b6;
+        --neon-lime: #a3e635;
+        --neon-amber: #fbbf24;
+        --neon-red: #fb7185;
+
+        --text: rgba(255, 255, 255, 0.92);
+        --muted: rgba(255, 255, 255, 0.72);
+
+        --shadow: 0 22px 80px rgba(0, 0, 0, 0.55);
+        --glow-cyan: 0 0 14px rgba(125, 211, 252, 0.55);
+        --glow-pink: 0 0 14px rgba(244, 114, 182, 0.55);
+        --glow-lime: 0 0 14px rgba(163, 230, 53, 0.30);
+
+        --radius: 18px;
+        --radius-sm: 12px;
+      }
+
+      * { box-sizing: border-box; }
+      html, body { height: 100%; }
+
+      body {
+        margin: 0;
+        color: var(--text);
+        background:
+          radial-gradient(1200px 700px at 15% 10%, rgba(244, 114, 182, 0.18), transparent 55%),
+          radial-gradient(900px 600px at 82% 12%, rgba(125, 211, 252, 0.16), transparent 50%),
+          radial-gradient(700px 450px at 60% 84%, rgba(163, 230, 53, 0.10), transparent 55%),
+          linear-gradient(180deg, var(--bg0), var(--bg1));
+        font-family: "VT323", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
+          "Courier New", monospace;
+        letter-spacing: 0.2px;
+        overflow-x: hidden;
+      }
+
+      /* Scanline + grid overlay */
+      .fx {
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        z-index: 0;
+      }
+      .fx::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background:
+          repeating-linear-gradient(
+            to bottom,
+            rgba(255,255,255,0.035),
+            rgba(255,255,255,0.035) 1px,
+            transparent 1px,
+            transparent 4px
+          );
+        mix-blend-mode: overlay;
+        opacity: 0.45;
+      }
+      .fx::after {
+        content: "";
+        position: absolute;
+        inset: -2px;
+        background:
+          linear-gradient(var(--grid) 1px, transparent 1px),
+          linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+        background-size: 48px 48px;
+        transform: perspective(900px) rotateX(9deg) translateY(20px);
+        transform-origin: top center;
+        opacity: 0.65;
+        filter: blur(0.1px);
+      }
+
+      /* Subtle CRT vignette */
+      .vignette {
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        z-index: 1;
+        background: radial-gradient(circle at center, transparent 55%, rgba(0, 0, 0, 0.55) 100%);
+      }
+
+      .wrap {
+        position: relative;
+        z-index: 2;
+        min-height: 100%;
+        padding: 28px 18px 42px;
+        display: grid;
+        place-items: center;
+      }
+
+      .shell {
+        width: min(980px, 100%);
+        display: grid;
+        gap: 16px;
+      }
+
+      header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 14px;
+        padding: 18px 18px 14px;
+        border-radius: var(--radius);
+        background: linear-gradient(180deg, rgba(17, 16, 35, 0.76), rgba(17, 16, 35, 0.58));
+        border: 1px solid var(--border);
+        box-shadow: var(--shadow), var(--glow-cyan);
+        position: relative;
+        overflow: hidden;
+      }
+
+      header::before {
+        content: "";
+        position: absolute;
+        inset: -1px;
+        background:
+          radial-gradient(650px 220px at 25% 0%, rgba(125, 211, 252, 0.18), transparent 60%),
+          radial-gradient(600px 240px at 95% 15%, rgba(244, 114, 182, 0.16), transparent 64%);
+        opacity: 0.9;
+      }
+
+      .brand {
+        position: relative;
+        display: grid;
+        gap: 10px;
+      }
+
+      .title {
+        font-family: "Press Start 2P", system-ui, sans-serif;
+        font-size: 16px;
+        line-height: 1.35;
+        margin: 0;
+        text-shadow: 0 0 0 rgba(0,0,0,0), 0 0 10px rgba(125, 211, 252, 0.35);
+      }
+
+      .subtitle {
+        margin: 0;
+        color: var(--muted);
+        font-size: 22px;
+        line-height: 1.2;
+      }
+
+      .status {
+        position: relative;
+        display: grid;
+        gap: 10px;
+        justify-items: end;
+        min-width: 260px;
+      }
+
+      .pillrow {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        gap: 8px;
+      }
+
+      .pill {
+        border: 1px solid rgba(255,255,255,0.14);
+        background: rgba(255, 255, 255, 0.06);
+        border-radius: 999px;
+        padding: 7px 10px;
+        font-size: 18px;
+        color: rgba(255,255,255,0.88);
+        box-shadow: 0 0 0 rgba(0,0,0,0);
+        white-space: nowrap;
+      }
+      .pill strong { font-weight: 700; color: #fff; }
+      .pill--cyan { border-color: rgba(125, 211, 252, 0.30); box-shadow: var(--glow-cyan); }
+      .pill--pink { border-color: rgba(244, 114, 182, 0.30); box-shadow: var(--glow-pink); }
+      .pill--lime { border-color: rgba(163, 230, 53, 0.30); box-shadow: var(--glow-lime); }
+
+      .hint {
+        margin: 0;
+        font-size: 18px;
+        color: rgba(255,255,255,0.70);
+        text-align: right;
+      }
+      kbd {
+        font-family: inherit;
+        font-size: 18px;
+        padding: 2px 6px;
+        border-radius: 6px;
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        background: rgba(0,0,0,0.25);
+      }
+
+      main {
+        display: grid;
+        grid-template-columns: 1.2fr 0.8fr;
+        gap: 16px;
+      }
+
+      @media (max-width: 920px) {
+        main { grid-template-columns: 1fr; }
+        .status { justify-items: start; min-width: unset; }
+        .hint { text-align: left; }
+        .pillrow { justify-content: flex-start; }
+      }
+
+      .card {
+        border-radius: var(--radius);
+        border: 1px solid var(--border);
+        background: linear-gradient(180deg, var(--panel), var(--panel-2));
+        box-shadow: var(--shadow);
+        overflow: hidden;
+      }
+
+      .card__head {
+        padding: 14px 16px 12px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        border-bottom: 1px solid rgba(125, 211, 252, 0.18);
+        background: rgba(0, 0, 0, 0.16);
+      }
+
+      .card__title {
+        margin: 0;
+        font-family: "Press Start 2P", system-ui, sans-serif;
+        font-size: 12px;
+        letter-spacing: 0.6px;
+        color: rgba(255,255,255,0.9);
+      }
+
+      .card__body {
+        padding: 16px;
+      }
+
+      .compose {
+        display: grid;
+        gap: 10px;
+      }
+
+      .fieldrow {
+        display: grid;
+        grid-template-columns: 1fr auto auto;
+        gap: 10px;
+        align-items: center;
+      }
+
+      @media (max-width: 560px) {
+        .fieldrow { grid-template-columns: 1fr; }
+      }
+
+      label {
+        display: block;
+        font-size: 18px;
+        color: rgba(255,255,255,0.85);
+        margin-bottom: 6px;
+      }
+
+      .input {
+        width: 100%;
+        border-radius: 14px;
+        border: 1px solid rgba(125, 211, 252, 0.28);
+        background: rgba(0,0,0,0.35);
+        color: rgba(255,255,255,0.92);
+        padding: 12px 14px;
+        font-size: 20px;
+        outline: none;
+        box-shadow: inset 0 0 0 1px rgba(0,0,0,0.25);
+      }
+      .input::placeholder { color: rgba(255,255,255,0.45); }
+      .input:focus {
+        border-color: rgba(125, 211, 252, 0.6);
+        box-shadow: 0 0 0 3px rgba(125, 211, 252, 0.18), inset 0 0 0 1px rgba(0,0,0,0.25);
+      }
+
+      .btn {
+        border: 1px solid rgba(255,255,255,0.16);
+        background: rgba(255,255,255,0.06);
+        color: rgba(255,255,255,0.92);
+        border-radius: 14px;
+        padding: 11px 12px;
+        font-size: 20px;
+        cursor: pointer;
+        user-select: none;
+        text-align: center;
+        min-width: 120px;
+        box-shadow: 0 10px 28px rgba(0,0,0,0.28);
+      }
+      .btn:focus-visible {
+        outline: 3px solid rgba(125, 211, 252, 0.35);
+        outline-offset: 2px;
+      }
+
+      .btn--primary {
+        border-color: rgba(163, 230, 53, 0.38);
+        background:
+          linear-gradient(180deg, rgba(163, 230, 53, 0.20), rgba(163, 230, 53, 0.08));
+        box-shadow: 0 0 14px rgba(163, 230, 53, 0.20), 0 10px 28px rgba(0,0,0,0.28);
+      }
+
+      .btn--ghost {
+        border-color: rgba(244, 114, 182, 0.30);
+        background: rgba(244, 114, 182, 0.10);
+        box-shadow: 0 0 14px rgba(244, 114, 182, 0.18), 0 10px 28px rgba(0,0,0,0.28);
+      }
+
+      .btn--warn {
+        border-color: rgba(251, 113, 133, 0.30);
+        background: rgba(251, 113, 133, 0.10);
+        box-shadow: 0 0 14px rgba(251, 113, 133, 0.14), 0 10px 28px rgba(0,0,0,0.28);
+      }
+
+      .btn--tiny {
+        min-width: unset;
+        padding: 8px 10px;
+        border-radius: 12px;
+        font-size: 18px;
+      }
+
+      .btn[disabled] {
+        opacity: 0.55;
+        cursor: not-allowed;
+      }
+
+      .micro {
+        font-size: 18px;
+        color: rgba(255,255,255,0.72);
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+
+      .micro span {
+        display: inline-flex;
+        gap: 8px;
+        align-items: center;
+      }
+
+      .dot {
+        width: 9px; height: 9px;
+        border-radius: 50%;
+        display: inline-block;
+        background: rgba(255,255,255,0.4);
+        box-shadow: 0 0 0 rgba(0,0,0,0);
+      }
+      .dot--cyan { background: var(--neon-cyan); box-shadow: 0 0 12px rgba(125, 211, 252, 0.55); }
+      .dot--lime { background: var(--neon-lime); box-shadow: 0 0 12px rgba(163, 230, 53, 0.45); }
+      .dot--pink { background: var(--neon-pink); box-shadow: 0 0 12px rgba(244, 114, 182, 0.45); }
+      .dot--red { background: var(--neon-red); box-shadow: 0 0 12px rgba(251, 113, 133, 0.35); }
+
+      .divider {
+        height: 1px;
+        background: rgba(125, 211, 252, 0.16);
+        margin: 12px 0;
+      }
+
+      .listwrap {
+        display: grid;
+        gap: 10px;
+      }
+
+      .empty {
+        border-radius: 14px;
+        border: 1px dashed rgba(255,255,255,0.16);
+        background: rgba(0,0,0,0.14);
+        padding: 14px 12px;
+        color: rgba(255,255,255,0.70);
+        font-size: 20px;
+      }
+
+      .list {
+        display: grid;
+        gap: 10px;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+      }
+
+      .todo {
+        display: grid;
+        grid-template-columns: auto 1fr auto;
+        gap: 12px;
+        align-items: center;
+        border-radius: 14px;
+        border: 1px solid rgba(255,255,255,0.12);
+        background: rgba(0,0,0,0.22);
+        padding: 12px 12px;
+      }
+
+      .todo--done {
+        opacity: 0.86;
+        border-color: rgba(163, 230, 53, 0.24);
+        background: rgba(163, 230, 53, 0.07);
+      }
+
+      .checkbtn {
+        width: 22px; height: 22px;
+        border-radius: 6px;
+        border: 1px solid rgba(125, 211, 252, 0.35);
+        background: rgba(0,0,0,0.25);
+        box-shadow: inset 0 0 0 2px rgba(0,0,0,0.22);
+        position: relative;
+        padding: 0;
+        cursor: pointer;
+      }
+      .checkbtn:focus-visible {
+        outline: 3px solid rgba(125, 211, 252, 0.35);
+        outline-offset: 2px;
+      }
+
+      .todo--done .checkbtn {
+        border-color: rgba(163, 230, 53, 0.45);
+        background: rgba(163, 230, 53, 0.16);
+      }
+      .todo--done .checkbtn::after {
+        content: "✓";
+        position: absolute;
+        inset: 0;
+        display: grid;
+        place-items: center;
+        font-size: 18px;
+        color: rgba(255,255,255,0.92);
+        text-shadow: 0 0 12px rgba(163, 230, 53, 0.45);
+      }
+
+      .todo__text {
+        display: grid;
+        gap: 4px;
+        min-width: 0;
+      }
+
+      .todo__label {
+        font-size: 24px;
+        line-height: 1.05;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .todo--done .todo__label {
+        text-decoration: line-through;
+        color: rgba(255,255,255,0.72);
+      }
+
+      .todo__meta {
+        font-size: 18px;
+        color: rgba(255,255,255,0.65);
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+
+      .tag {
+        padding: 3px 9px;
+        border-radius: 999px;
+        border: 1px solid rgba(255,255,255,0.14);
+        background: rgba(255,255,255,0.06);
+      }
+      .tag--amber { border-color: rgba(251, 191, 36, 0.35); background: rgba(251, 191, 36, 0.10); }
+      .tag--cyan { border-color: rgba(125, 211, 252, 0.33); background: rgba(125, 211, 252, 0.08); }
+      .tag--pink { border-color: rgba(244, 114, 182, 0.32); background: rgba(244, 114, 182, 0.08); }
+      .tag--lime { border-color: rgba(163, 230, 53, 0.30); background: rgba(163, 230, 53, 0.08); }
+      .tag--red { border-color: rgba(251, 113, 133, 0.30); background: rgba(251, 113, 133, 0.08); }
+
+      .todo__actions {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+      }
+
+      .iconbtn {
+        width: 42px;
+        height: 42px;
+        border-radius: 12px;
+        border: 1px solid rgba(255,255,255,0.14);
+        background: rgba(255,255,255,0.05);
+        display: grid;
+        place-items: center;
+        font-size: 20px;
+        color: rgba(255,255,255,0.92);
+        cursor: pointer;
+      }
+      .iconbtn:focus-visible {
+        outline: 3px solid rgba(125, 211, 252, 0.35);
+        outline-offset: 2px;
+      }
+      .iconbtn--edit { border-color: rgba(125, 211, 252, 0.32); box-shadow: 0 0 10px rgba(125, 211, 252, 0.18); }
+      .iconbtn--del { border-color: rgba(251, 113, 133, 0.30); box-shadow: 0 0 10px rgba(251, 113, 133, 0.16); }
+
+      .sidegrid {
+        display: grid;
+        gap: 16px;
+      }
+
+      .statbox {
+        display: grid;
+        gap: 10px;
+      }
+
+      .bigstat {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 12px 12px;
+        border-radius: 14px;
+        border: 1px solid rgba(255,255,255,0.12);
+        background: rgba(0,0,0,0.22);
+      }
+      .bigstat__label {
+        color: rgba(255,255,255,0.75);
+        font-size: 18px;
+      }
+      .bigstat__value {
+        font-family: "Press Start 2P", system-ui, sans-serif;
+        font-size: 14px;
+        color: rgba(255,255,255,0.92);
+      }
+
+      .note {
+        font-size: 18px;
+        color: rgba(255,255,255,0.72);
+        line-height: 1.35;
+        margin: 0;
+      }
+
+      .sr-only {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border: 0;
+      }
+
+      .footer {
+        text-align: center;
+        color: rgba(255,255,255,0.55);
+        font-size: 18px;
+        padding: 8px 0 0;
+      }
+
+      a { color: var(--neon-cyan); text-decoration: none; }
+      a:hover { text-decoration: underline; }
+
+      /* Modal */
+      .modal[hidden] { display: none; }
+      .modal {
+        position: fixed;
+        inset: 0;
+        z-index: 20;
+        display: grid;
+        place-items: center;
+        padding: 18px;
+      }
+
+      .modal__backdrop {
+        position: absolute;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.62);
+        backdrop-filter: blur(2px);
+      }
+
+      .modal__panel {
+        position: relative;
+        width: min(640px, 100%);
+        border-radius: var(--radius);
+        border: 1px solid rgba(125, 211, 252, 0.28);
+        background: linear-gradient(180deg, rgba(17, 16, 35, 0.88), rgba(17, 16, 35, 0.72));
+        box-shadow: var(--shadow), var(--glow-cyan);
+        overflow: hidden;
+      }
+
+      .modal__head {
+        padding: 14px 16px 12px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        border-bottom: 1px solid rgba(125, 211, 252, 0.18);
+        background: rgba(0, 0, 0, 0.18);
+      }
+
+      .modal__title {
+        margin: 0;
+        font-family: "Press Start 2P", system-ui, sans-serif;
+        font-size: 12px;
+        letter-spacing: 0.6px;
+        color: rgba(255,255,255,0.9);
+      }
+
+      .modal__body { padding: 16px; display: grid; gap: 12px; }
+      .modal__actions { display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap; }
+
+      .toast {
+        position: fixed;
+        right: 18px;
+        bottom: 18px;
+        z-index: 30;
+        border-radius: 14px;
+        border: 1px solid rgba(255,255,255,0.14);
+        background: rgba(0,0,0,0.50);
+        color: rgba(255,255,255,0.88);
+        padding: 10px 12px;
+        box-shadow: 0 18px 42px rgba(0,0,0,0.35);
+        max-width: min(540px, calc(100vw - 36px));
+        font-size: 18px;
+        opacity: 0;
+        transform: translateY(8px);
+        transition: opacity 160ms ease, transform 160ms ease;
+        pointer-events: none;
+      }
+      .toast--show {
+        opacity: 1;
+        transform: translateY(0);
+      }
+      .toast__strong { color: #fff; font-weight: 700; }
+
+      @media (prefers-reduced-motion: reduce) {
+        .toast { transition: none; }
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="fx" aria-hidden="true"></div>
+    <div class="vignette" aria-hidden="true"></div>
+
+    <div class="wrap">
+      <div class="shell" role="application" aria-label="Retro interactive todo">
+        <header>
+          <div class="brand">
+            <h1 class="title">RETRO TODO // INTERACTIVE</h1>
+            <p class="subtitle">Neon CRT todo list (add / edit / delete)</p>
+          </div>
+
+          <div class="status" aria-label="Status">
+            <div class="pillrow">
+              <div class="pill pill--cyan" title="Storage mode">
+                MODE: <strong id="modePill">LOCAL</strong>
+              </div>
+              <div class="pill pill--pink" title="Theme">
+                THEME: <strong>CRT</strong>
+              </div>
+              <div class="pill pill--lime" title="Autosave">
+                SAVE: <strong>ON</strong>
+              </div>
+            </div>
+            <p class="hint">
+              Tip: press <kbd>Enter</kbd> to add, <kbd>Esc</kbd> to close dialogs
+            </p>
+          </div>
+        </header>
+
+        <main>
+          <section class="card" aria-label="Todos">
+            <div class="card__head">
+              <h2 class="card__title">ADD NEW MISSION</h2>
+              <div class="pill" aria-hidden="true">v0.1 interactive</div>
+            </div>
+
+            <div class="card__body">
+              <div class="compose">
+                <div>
+                  <label for="todoInput">Todo text</label>
+                  <div class="fieldrow">
+                    <input
+                      id="todoInput"
+                      class="input"
+                      type="text"
+                      placeholder="e.g., Defeat the bug boss in level 3..."
+                      value=""
+                      aria-describedby="composeHelp"
+                      maxlength="200"
+                      autocomplete="off"
+                    />
+                    <button id="addBtn" class="btn btn--primary" type="button">
+                      + Add
+                    </button>
+                    <button id="clearBtn" class="btn btn--ghost" type="button">
+                      Clear
+                    </button>
+                  </div>
+                </div>
+
+                <div class="micro" id="composeHelp">
+                  <span><i class="dot dot--cyan" aria-hidden="true"></i>Click checkbox to toggle done</span>
+                  <span><i class="dot dot--pink" aria-hidden="true"></i>Edit (✎) opens a dialog</span>
+                  <span><i class="dot dot--red" aria-hidden="true"></i>Delete (🗑) asks for confirmation</span>
+                </div>
+
+                <div class="divider" role="separator" aria-hidden="true"></div>
+
+                <div class="listwrap" aria-label="Current queue">
+                  <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;">
+                    <h2 class="card__title" style="margin: 0;">CURRENT QUEUE</h2>
+                    <button id="resetBtn" class="btn btn--warn btn--tiny" type="button" title="Clears ALL todos">
+                      Reset all
+                    </button>
+                  </div>
+
+                  <div id="emptyState" class="empty" hidden>
+                    No missions yet. Type something above and hit <strong style="color:#fff">Enter</strong>.
+                  </div>
+
+                  <ul id="todoList" class="list" aria-label="Todo list"></ul>
+
+                  <p class="footer">
+                    Standalone file (no React). Data is stored in <span class="tag tag--cyan">localStorage</span>.
+                    Also available: <a href="./retro-todo-mockup.html">static mockup</a>.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <aside class="sidegrid" aria-label="Sidebar">
+            <section class="card">
+              <div class="card__head">
+                <h2 class="card__title">DASHBOARD</h2>
+                <div class="pill" aria-hidden="true">stats</div>
+              </div>
+              <div class="card__body">
+                <div class="statbox" role="group" aria-label="Todo stats">
+                  <div class="bigstat">
+                    <div class="bigstat__label">Total</div>
+                    <div class="bigstat__value" id="statTotal">0</div>
+                  </div>
+                  <div class="bigstat">
+                    <div class="bigstat__label">Completed</div>
+                    <div class="bigstat__value" id="statDone">0</div>
+                  </div>
+                  <div class="bigstat">
+                    <div class="bigstat__label">Pending</div>
+                    <div class="bigstat__value" id="statPending">0</div>
+                  </div>
+                </div>
+
+                <div class="divider" role="separator" aria-hidden="true"></div>
+
+                <p class="note">
+                  Quick actions:<br />
+                  <button id="seedBtn" class="btn btn--tiny" type="button" style="margin-top:8px;">Seed demo todos</button>
+                </p>
+              </div>
+            </section>
+
+            <section class="card">
+              <div class="card__head">
+                <h2 class="card__title">HOTKEYS</h2>
+                <div class="pill" aria-hidden="true">ui</div>
+              </div>
+              <div class="card__body">
+                <p class="note">
+                  <strong style="color: rgba(255,255,255,0.92);">Enter</strong> — add todo<br />
+                  <strong style="color: rgba(255,255,255,0.92);">Esc</strong> — close dialogs<br />
+                  <strong style="color: rgba(255,255,255,0.92);">Click checkbox</strong> — toggle done
+                </p>
+
+                <div class="divider" role="separator" aria-hidden="true"></div>
+
+                <p class="note">
+                  Retro style: neon gradients, scanlines, grid floor, pixel header font.
+                </p>
+              </div>
+            </section>
+          </aside>
+        </main>
+      </div>
+    </div>
+
+    <!-- Edit Modal -->
+    <div id="editModal" class="modal" hidden aria-hidden="true">
+      <div class="modal__backdrop" data-close="true" aria-hidden="true"></div>
+      <div
+        class="modal__panel"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="editTitle"
+        aria-describedby="editDesc"
+      >
+        <div class="modal__head">
+          <h2 id="editTitle" class="modal__title">EDIT MISSION</h2>
+          <button id="editCloseBtn" class="btn btn--tiny" type="button" aria-label="Close dialog">Esc</button>
+        </div>
+        <div class="modal__body">
+          <p id="editDesc" class="note" style="margin:0;">
+            Modify mission text and hit <span class="tag tag--lime">Save</span>.
+          </p>
+
+          <div>
+            <label for="editInput">Todo text</label>
+            <input
+              id="editInput"
+              class="input"
+              type="text"
+              maxlength="200"
+              autocomplete="off"
+            />
+            <div class="micro" style="margin-top:8px;">
+              <span><i class="dot dot--cyan" aria-hidden="true"></i>ID: <span id="editIdLabel">—</span></span>
+              <span><i class="dot dot--pink" aria-hidden="true"></i>Created: <span id="editCreatedLabel">—</span></span>
+            </div>
+          </div>
+
+          <div class="modal__actions">
+            <button id="editCancelBtn" class="btn btn--ghost" type="button">Cancel</button>
+            <button id="editSaveBtn" class="btn btn--primary" type="button">Save</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Delete Confirm Modal -->
+    <div id="confirmModal" class="modal" hidden aria-hidden="true">
+      <div class="modal__backdrop" data-close="true" aria-hidden="true"></div>
+      <div
+        class="modal__panel"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="confirmTitle"
+        aria-describedby="confirmDesc"
+      >
+        <div class="modal__head">
+          <h2 id="confirmTitle" class="modal__title">CONFIRM DELETE</h2>
+          <button id="confirmCloseBtn" class="btn btn--tiny" type="button" aria-label="Close dialog">Esc</button>
+        </div>
+        <div class="modal__body">
+          <p id="confirmDesc" class="note" style="margin:0;">
+            This will permanently delete the mission:
+          </p>
+          <div class="empty" style="border-style:solid;">
+            <span class="tag tag--red">Target</span>
+            <strong id="confirmTarget" style="color:#fff;"></strong>
+          </div>
+
+          <div class="modal__actions">
+            <button id="confirmCancelBtn" class="btn btn--ghost" type="button">Cancel</button>
+            <button id="confirmDeleteBtn" class="btn btn--warn" type="button">Delete</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+    <script>
+      (() => {
+        "use strict";
+
+        const STORAGE_KEY = "retroTodo.interactive.v1";
+
+        const els = {
+          input: document.getElementById("todoInput"),
+          addBtn: document.getElementById("addBtn"),
+          clearBtn: document.getElementById("clearBtn"),
+          resetBtn: document.getElementById("resetBtn"),
+          seedBtn: document.getElementById("seedBtn"),
+
+          list: document.getElementById("todoList"),
+          empty: document.getElementById("emptyState"),
+
+          statTotal: document.getElementById("statTotal"),
+          statDone: document.getElementById("statDone"),
+          statPending: document.getElementById("statPending"),
+
+          toast: document.getElementById("toast"),
+
+          editModal: document.getElementById("editModal"),
+          editInput: document.getElementById("editInput"),
+          editIdLabel: document.getElementById("editIdLabel"),
+          editCreatedLabel: document.getElementById("editCreatedLabel"),
+          editCloseBtn: document.getElementById("editCloseBtn"),
+          editCancelBtn: document.getElementById("editCancelBtn"),
+          editSaveBtn: document.getElementById("editSaveBtn"),
+
+          confirmModal: document.getElementById("confirmModal"),
+          confirmCloseBtn: document.getElementById("confirmCloseBtn"),
+          confirmCancelBtn: document.getElementById("confirmCancelBtn"),
+          confirmDeleteBtn: document.getElementById("confirmDeleteBtn"),
+          confirmTarget: document.getElementById("confirmTarget"),
+        };
+
+        /** @type {{todos: Array<{id: string, text: string, done: boolean, createdAt: number, updatedAt: number}>}} */
+        let state = { todos: [] };
+
+        /** @type {{type: null|"edit"|"delete", todoId: null|string, lastFocusEl: null|HTMLElement}} */
+        let modalState = { type: null, todoId: null, lastFocusEl: null };
+
+        // PUBLIC_INTERFACE
+        function init() {
+          /** Initialize app: load persisted state, wire events, render. */
+          state = loadState();
+
+          wireEvents();
+          render();
+
+          // Focus primary input for fast usage.
+          els.input.focus();
+        }
+
+        function wireEvents() {
+          els.addBtn.addEventListener("click", () => addFromInput());
+          els.clearBtn.addEventListener("click", () => {
+            els.input.value = "";
+            els.input.focus();
+          });
+
+          els.resetBtn.addEventListener("click", () => {
+            const ok = confirm("Reset ALL missions? This cannot be undone.");
+            if (!ok) return;
+            state.todos = [];
+            persistState();
+            render();
+            showToast("All missions cleared.");
+          });
+
+          els.seedBtn.addEventListener("click", () => {
+            if (state.todos.length > 0) {
+              showToast("Queue already has missions. Reset first if you want a clean seed.");
+              return;
+            }
+            state.todos = seedTodos();
+            persistState();
+            render();
+            showToast("Seeded demo missions.");
+          });
+
+          els.input.addEventListener("keydown", (e) => {
+            if (e.key === "Enter") addFromInput();
+          });
+
+          // Event delegation for list actions.
+          els.list.addEventListener("click", (e) => {
+            const target = e.target;
+            if (!(target instanceof HTMLElement)) return;
+
+            const li = target.closest("li[data-id]");
+            if (!li) return;
+            const id = li.getAttribute("data-id");
+            if (!id) return;
+
+            if (target.matches("[data-action='toggle']")) {
+              toggleTodo(id);
+              return;
+            }
+            if (target.matches("[data-action='edit']")) {
+              openEditModal(id, target);
+              return;
+            }
+            if (target.matches("[data-action='delete']")) {
+              openConfirmModal(id, target);
+              return;
+            }
+          });
+
+          // Modal close hooks (backdrop click)
+          for (const modal of [els.editModal, els.confirmModal]) {
+            modal.addEventListener("click", (e) => {
+              const t = e.target;
+              if (t instanceof HTMLElement && t.getAttribute("data-close") === "true") {
+                closeAnyModal();
+              }
+            });
+          }
+
+          // Edit modal buttons
+          els.editCloseBtn.addEventListener("click", () => closeAnyModal());
+          els.editCancelBtn.addEventListener("click", () => closeAnyModal());
+          els.editSaveBtn.addEventListener("click", () => saveEdit());
+
+          els.editInput.addEventListener("keydown", (e) => {
+            if (e.key === "Enter") saveEdit();
+          });
+
+          // Confirm modal buttons
+          els.confirmCloseBtn.addEventListener("click", () => closeAnyModal());
+          els.confirmCancelBtn.addEventListener("click", () => closeAnyModal());
+          els.confirmDeleteBtn.addEventListener("click", () => confirmDelete());
+
+          // Global key handler: Escape closes any open modal.
+          window.addEventListener("keydown", (e) => {
+            if (e.key !== "Escape") return;
+            if (!isAnyModalOpen()) return;
+            e.preventDefault();
+            closeAnyModal();
+          });
+        }
+
+        function addFromInput() {
+          const raw = els.input.value;
+          const text = normalizeText(raw);
+
+          if (!text) {
+            showToast("Type a mission first.", { kind: "warn" });
+            els.input.focus();
+            return;
+          }
+
+          addTodo(text);
+          els.input.value = "";
+          els.input.focus();
+        }
+
+        function addTodo(text) {
+          const now = Date.now();
+          const todo = {
+            id: createId(),
+            text,
+            done: false,
+            createdAt: now,
+            updatedAt: now,
+          };
+
+          state.todos.unshift(todo);
+          persistState();
+          render();
+          showToast(`Added: `, { strong: todo.text });
+        }
+
+        function toggleTodo(id) {
+          const t = findTodo(id);
+          if (!t) return;
+
+          t.done = !t.done;
+          t.updatedAt = Date.now();
+
+          persistState();
+          render();
+          showToast(t.done ? "Mission complete." : "Mission restored.");
+        }
+
+        function openEditModal(id, focusEl) {
+          const t = findTodo(id);
+          if (!t) return;
+
+          modalState = { type: "edit", todoId: id, lastFocusEl: focusEl instanceof HTMLElement ? focusEl : document.activeElement };
+
+          els.editIdLabel.textContent = t.id;
+          els.editCreatedLabel.textContent = formatTime(t.createdAt);
+          els.editInput.value = t.text;
+
+          openModal(els.editModal);
+
+          // Defer focus until after modal is visible
+          setTimeout(() => els.editInput.focus(), 0);
+        }
+
+        function saveEdit() {
+          if (modalState.type !== "edit" || !modalState.todoId) return;
+          const t = findTodo(modalState.todoId);
+          if (!t) return;
+
+          const next = normalizeText(els.editInput.value);
+          if (!next) {
+            showToast("Todo text cannot be empty.", { kind: "warn" });
+            els.editInput.focus();
+            return;
+          }
+
+          t.text = next;
+          t.updatedAt = Date.now();
+
+          persistState();
+          render();
+          closeAnyModal();
+          showToast("Saved changes.", { strong: t.text });
+        }
+
+        function openConfirmModal(id, focusEl) {
+          const t = findTodo(id);
+          if (!t) return;
+
+          modalState = { type: "delete", todoId: id, lastFocusEl: focusEl instanceof HTMLElement ? focusEl : document.activeElement };
+
+          els.confirmTarget.textContent = t.text;
+
+          openModal(els.confirmModal);
+          setTimeout(() => els.confirmDeleteBtn.focus(), 0);
+        }
+
+        function confirmDelete() {
+          if (modalState.type !== "delete" || !modalState.todoId) return;
+
+          const idx = state.todos.findIndex((t) => t.id === modalState.todoId);
+          if (idx === -1) return;
+
+          const [removed] = state.todos.splice(idx, 1);
+
+          persistState();
+          render();
+          closeAnyModal();
+          showToast("Deleted mission.", { strong: removed.text });
+        }
+
+        function closeAnyModal() {
+          if (isModalOpen(els.editModal)) closeModal(els.editModal);
+          if (isModalOpen(els.confirmModal)) closeModal(els.confirmModal);
+
+          const toFocus = modalState.lastFocusEl;
+          modalState = { type: null, todoId: null, lastFocusEl: null };
+
+          // Restore focus back to the triggering element when possible
+          if (toFocus && typeof toFocus.focus === "function") {
+            setTimeout(() => toFocus.focus(), 0);
+          } else {
+            setTimeout(() => els.input.focus(), 0);
+          }
+        }
+
+        function isAnyModalOpen() {
+          return isModalOpen(els.editModal) || isModalOpen(els.confirmModal);
+        }
+
+        function openModal(modalEl) {
+          modalEl.hidden = false;
+          modalEl.setAttribute("aria-hidden", "false");
+
+          // Prevent background scroll while modal open.
+          document.body.style.overflow = "hidden";
+        }
+
+        function closeModal(modalEl) {
+          modalEl.hidden = true;
+          modalEl.setAttribute("aria-hidden", "true");
+
+          // Restore body scroll only if no other modals are open.
+          if (!isAnyModalOpen()) {
+            document.body.style.overflow = "";
+          }
+        }
+
+        function isModalOpen(modalEl) {
+          return !modalEl.hidden;
+        }
+
+        function findTodo(id) {
+          return state.todos.find((t) => t.id === id) || null;
+        }
+
+        function render() {
+          // List
+          els.list.innerHTML = "";
+          const todos = state.todos.slice();
+
+          els.empty.hidden = todos.length !== 0;
+
+          for (const t of todos) {
+            els.list.appendChild(renderTodoItem(t));
+          }
+
+          // Stats
+          const total = todos.length;
+          const done = todos.filter((t) => t.done).length;
+          const pending = total - done;
+
+          els.statTotal.textContent = String(total);
+          els.statDone.textContent = String(done);
+          els.statPending.textContent = String(pending);
+
+          // Disable reset if empty
+          els.resetBtn.disabled = total === 0;
+        }
+
+        function renderTodoItem(todo) {
+          const li = document.createElement("li");
+          li.className = todo.done ? "todo todo--done" : "todo";
+          li.setAttribute("data-id", todo.id);
+
+          const createdTag = document.createElement("span");
+          createdTag.className = "tag";
+          createdTag.textContent = `Created: ${formatTime(todo.createdAt)}`;
+
+          const updatedTag = document.createElement("span");
+          updatedTag.className = "tag tag--cyan";
+          updatedTag.textContent = `Updated: ${formatTime(todo.updatedAt)}`;
+
+          const statusTag = document.createElement("span");
+          statusTag.className = todo.done ? "tag tag--lime" : "tag tag--amber";
+          statusTag.textContent = todo.done ? "Status: Complete" : "Status: Pending";
+
+          li.innerHTML = `
+            <button class="checkbtn" type="button" data-action="toggle" aria-label="Toggle complete"></button>
+            <div class="todo__text">
+              <div class="todo__label" title="${escapeHtml(todo.text)}">${escapeHtml(todo.text)}</div>
+              <div class="todo__meta"></div>
+            </div>
+            <div class="todo__actions" aria-label="Actions">
+              <button class="iconbtn iconbtn--edit" type="button" data-action="edit" aria-label="Edit todo" title="Edit">✎</button>
+              <button class="iconbtn iconbtn--del" type="button" data-action="delete" aria-label="Delete todo" title="Delete">🗑</button>
+            </div>
+          `;
+
+          // Populate meta tags safely
+          const meta = li.querySelector(".todo__meta");
+          meta.appendChild(statusTag);
+          meta.appendChild(createdTag);
+          meta.appendChild(updatedTag);
+
+          return li;
+        }
+
+        function persistState() {
+          try {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+          } catch (e) {
+            // If storage fails (quota/private mode), keep app functional in-memory.
+            console.warn("Failed to persist state:", e);
+            showToast("Warning: could not save to localStorage.", { kind: "warn" });
+          }
+        }
+
+        function loadState() {
+          try {
+            const raw = localStorage.getItem(STORAGE_KEY);
+            if (!raw) return { todos: [] };
+            const parsed = JSON.parse(raw);
+
+            // Minimal validation to avoid runtime errors from corrupted storage.
+            if (!parsed || typeof parsed !== "object") return { todos: [] };
+            if (!Array.isArray(parsed.todos)) return { todos: [] };
+
+            const safeTodos = parsed.todos
+              .filter((t) => t && typeof t === "object")
+              .map((t) => ({
+                id: typeof t.id === "string" ? t.id : createId(),
+                text: typeof t.text === "string" ? t.text : "Untitled mission",
+                done: Boolean(t.done),
+                createdAt: typeof t.createdAt === "number" ? t.createdAt : Date.now(),
+                updatedAt: typeof t.updatedAt === "number" ? t.updatedAt : (typeof t.createdAt === "number" ? t.createdAt : Date.now()),
+              }));
+
+            return { todos: safeTodos };
+          } catch (e) {
+            console.warn("Failed to load state:", e);
+            return { todos: [] };
+          }
+        }
+
+        function seedTodos() {
+          const now = Date.now();
+          return [
+            {
+              id: createId(),
+              text: "Buy milk (and snacks for the LAN party)",
+              done: false,
+              createdAt: now - 1000 * 60 * 60 * 2,
+              updatedAt: now - 1000 * 60 * 60 * 2,
+            },
+            {
+              id: createId(),
+              text: "Ship retro interactive HTML to the team",
+              done: true,
+              createdAt: now - 1000 * 60 * 25,
+              updatedAt: now - 1000 * 60 * 5,
+            },
+            {
+              id: createId(),
+              text: "Refactor 'laser' CSS into reusable tokens",
+              done: false,
+              createdAt: now - 1000 * 60 * 90,
+              updatedAt: now - 1000 * 60 * 40,
+            },
+            {
+              id: createId(),
+              text: "Call mom",
+              done: false,
+              createdAt: now - 1000 * 60 * 10,
+              updatedAt: now - 1000 * 60 * 10,
+            },
+          ];
+        }
+
+        function normalizeText(s) {
+          if (typeof s !== "string") return "";
+          // Collapse whitespace but keep it readable.
+          return s.replace(/\s+/g, " ").trim();
+        }
+
+        function createId() {
+          // Good enough for local storage demo usage; avoids dependency on crypto for compatibility.
+          return "t_" + Math.random().toString(16).slice(2) + "_" + Date.now().toString(16);
+        }
+
+        function pad2(n) {
+          return String(n).padStart(2, "0");
+        }
+
+        function formatTime(ts) {
+          const d = new Date(ts);
+          if (Number.isNaN(d.getTime())) return "—";
+          return `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+        }
+
+        function escapeHtml(str) {
+          return String(str)
+            .replaceAll("&", "&amp;")
+            .replaceAll("<", "&lt;")
+            .replaceAll(">", "&gt;")
+            .replaceAll('"', "&quot;")
+            .replaceAll("'", "&#39;");
+        }
+
+        let toastTimer = null;
+
+        /**
+         * Show a small non-blocking toast message.
+         * @param {string} message
+         * @param {{strong?: string, kind?: "warn" | "info"}} [opts]
+         */
+        function showToast(message, opts = {}) {
+          const kind = opts.kind || "info";
+          const strong = opts.strong || "";
+
+          els.toast.innerHTML = "";
+          if (strong) {
+            const spanStrong = document.createElement("span");
+            spanStrong.className = "toast__strong";
+            spanStrong.textContent = strong;
+            els.toast.append(message, spanStrong);
+          } else {
+            els.toast.textContent = message;
+          }
+
+          // Color hint via border depending on kind.
+          if (kind === "warn") {
+            els.toast.style.borderColor = "rgba(251, 113, 133, 0.30)";
+          } else {
+            els.toast.style.borderColor = "rgba(125, 211, 252, 0.28)";
+          }
+
+          els.toast.classList.add("toast--show");
+
+          if (toastTimer) window.clearTimeout(toastTimer);
+          toastTimer = window.setTimeout(() => {
+            els.toast.classList.remove("toast--show");
+          }, 1800);
+        }
+
+        init();
+      })();
+    </script>
+  </body>
+</html>
